@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0d0f12"><title>Afoncilus AI</title>
+<style>
+:root{--bg:#0d0f12;--panel:#171a20;--panel2:#20242c;--line:#2c313b;--text:#f4f5f7;--muted:#a8afbb;--accent:#9ff39a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.app{min-height:100dvh;display:grid;grid-template-columns:250px 1fr}.side{background:#121419;border-right:1px solid var(--line);padding:18px}.logo{font-size:21px;font-weight:850;margin:4px 0 22px}.logo b{color:var(--accent)}
+button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:12px;padding:10px 13px;font:inherit;cursor:pointer}button:hover{filter:brightness(1.12)}
+.new{width:100%;background:var(--accent);color:#10130f;border:0;font-weight:800}.side button:not(.new){width:100%;margin-top:8px}.note{font-size:12px;color:var(--muted);margin-top:20px;line-height:1.55}
+.main{min-width:0;display:flex;flex-direction:column;min-height:100dvh}.top{height:58px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 20px}.top small{color:var(--muted)}
+.messages{width:min(860px,100%);margin:auto;padding:28px 20px 170px;flex:1}.welcome{text-align:center;padding:12vh 0 3vh}.welcome .mark{font-size:38px}.welcome h1{font-size:clamp(30px,6vw,46px);margin:10px 0}.welcome p{color:var(--muted)}
+.msg{margin:22px 0;white-space:pre-wrap;overflow-wrap:anywhere}.user{margin-left:auto;max-width:86%;width:fit-content;background:#242933;padding:13px 16px;border-radius:18px}.assistant{padding:2px}.label{color:var(--accent);font-size:12px;font-weight:800;margin-bottom:5px}.assistant img{display:block;max-width:100%;border-radius:15px;border:1px solid var(--line);margin-top:10px}
+.wrap{position:fixed;left:250px;right:0;bottom:0;padding:18px 20px 12px;background:linear-gradient(transparent,var(--bg) 20%)}.composer{width:min(860px,100%);margin:auto;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:9px;box-shadow:0 8px 35px #0007}
+textarea{width:100%;min-height:54px;max-height:180px;resize:vertical;background:transparent;color:var(--text);border:0;outline:0;padding:9px;font:inherit}.actions{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}.actions div{display:flex;gap:7px;flex-wrap:wrap}.primary{background:var(--accent);color:#10130f;border:0;font-weight:800}.foot{width:min(860px,100%);margin:6px auto 0;text-align:center;color:var(--muted);font-size:11px}
+@media(max-width:700px){.app{grid-template-columns:1fr}.side{display:none}.wrap{left:0;padding:9px}.messages{padding:18px 14px 170px}.welcome{padding-top:9vh}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+ <div class="logo">✦ <b>Afoncilus</b> AI</div>
+ <button class="new" id="new">＋ Nova conversa</button>
+ <button id="clear">Limpar histórico</button>
+ <div class="note">Assistente experimental. As respostas, pesquisa e imagens dependem de serviços externos e podem ter limites.</div>
+</aside>
+<main class="main">
+ <header class="top"><strong>Afoncilus AI</strong><small id="state">Online · experimental</small></header>
+ <section class="messages" id="messages"><div class="welcome"><div class="mark">✦</div><h1>Como posso ajudar?</h1><p>Conversa, pesquisa na Web ou geração de imagens.</p></div></section>
+ <div class="wrap">
+  <div class="composer">
+   <textarea id="input" placeholder="Escreve uma mensagem…"></textarea>
+   <div class="actions">
+    <div><button id="web">⌕ Pesquisar Web</button><button id="img">▧ Imagem</button></div>
+    <div><button class="primary" id="send">Enviar ↑</button></div>
+   </div>
+  </div>
+  <div class="foot">Não introduzas passwords ou dados confidenciais.</div>
+ </div>
+</main>
+</div>
+<script>
+const $=x=>document.getElementById(x), messages=$('messages');
+let history=[];let mode='chat';
+try{history=JSON.parse(localStorage.getItem('afoncilusHistory')||'[]')}catch(e){}
+function save(){try{localStorage.setItem('afoncilusHistory',JSON.stringify(history.slice(-80)))}catch(e){}}
+function bubble(role,text,image=''){
+ const d=document.createElement('div');d.className='msg '+role;
+ if(role==='assistant'){const l=document.createElement('div');l.className='label';l.textContent='AFONCILUS AI';d.appendChild(l)}
+ const t=document.createElement('div');t.textContent=text;d.appendChild(t);
+ if(image){const im=document.createElement('img');im.src=image;im.alt='Imagem gerada';d.appendChild(im)}
+ messages.appendChild(d);messages.scrollIntoView({block:'end',behavior:'smooth'});
+ return d;
+}
+function render(){messages.innerHTML='';if(!history.length){messages.innerHTML='<div class="welcome"><div class="mark">✦</div><h1>Como posso ajudar?</h1><p>Conversa, pesquisa na Web ou geração de imagens.</p></div>';return}history.forEach(x=>bubble(x.role,x.text,x.image||''))}
+function add(role,text,image=''){history.push({role,text,image});save();bubble(role,text,image)}
+async function send(){
+ const q=$('input').value.trim();if(!q)return;$('input').value='';$('send').disabled=true;$('state').textContent='A processar…';add('user',q);
+ const load=bubble('assistant','Afoncilus AI está a pensar…');
+ try{
+  if(mode==='image'){
+   const url='https://image.pollinations.ai/prompt/'+encodeURIComponent(q)+'?width=768&height=768&nologo=true';
+   const r=await fetch(url);if(!r.ok)throw Error('O serviço de imagens devolveu HTTP '+r.status+'.');
+   const b=await r.blob();if(!b.type.startsWith('image/'))throw Error('O serviço não devolveu uma imagem.');
+   const u=URL.createObjectURL(b);load.remove();add('assistant','Imagem gerada pelo serviço experimental.',u);
+  }else{
+   const recent=history.slice(-14).map(x=>(x.role==='user'?'Utilizador: ':'Assistente: ')+x.text).join('\\n');
+   const prompt='Responde em português europeu. Sê útil, natural, conciso e honesto. Mantém o contexto.\\n\\n'+recent+'\\nAssistente:';
+   const r=await fetch('https://text.pollinations.ai/'+encodeURIComponent(prompt));
+   if(!r.ok)throw Error('O serviço de texto devolveu HTTP '+r.status+'.');
+   const a=(await r.text()).trim();if(!a)throw Error('Resposta vazia.');load.remove();add('assistant',a);
+  }
+ }catch(e){load.remove();add('assistant','Não consegui responder agora: '+e.message+'\\n\\nEste protótipo usa endpoints públicos externos; podem ter limites, ficar indisponíveis ou mudar.')}
+ $('send').disabled=false;$('state').textContent='Online · experimental';mode='chat';$('img').textContent='▧ Imagem'
+}
+$('send').onclick=send;$('input').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}};
+$('new').onclick=()=>{history=[];save();render()};$('clear').onclick=()=>{if(confirm('Apagar o histórico?')){history=[];save();render()}};
+$('img').onclick=()=>{mode='image';$('img').textContent='▧ Imagem ativa';$('input').placeholder='Descreve a imagem…';$('state').textContent='Modo imagem · experimental';$('input').focus()};
+$('web').onclick=()=>{const q=$('input').value.trim();if(q)window.open('https://duckduckgo.com/?q='+encodeURIComponent(q),'_blank','noopener');else $('input').focus()};
+render();
+</script>
+</body></html>
